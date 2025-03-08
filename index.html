@@ -151,6 +151,29 @@
             opacity: 0.5;
         }
 
+        select {
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: inherit;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            background: rgba(15, 23, 42, 0.6);
+            transition: border-color 0.2s;
+            cursor: pointer;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        select option {
+            background: rgba(15, 23, 42, 0.95);
+            color: var(--text-primary);
+        }
+
         button {
             background-color: var(--primary-color);
             color: white;
@@ -233,10 +256,19 @@
                     <input type="text" id="symbol2" required placeholder="e.g. MSTR" pattern="[A-Za-z]+" maxlength="5">
                 </div>
                 <div class="form-group">
+                    <label for="dateRange">Date Range</label>
+                    <select id="dateRange">
+                        <option value="custom">Custom Range</option>
+                        <option value="today">Today</option>
+                        <option value="7days" selected>Last 7 Days</option>
+                        <option value="1month">Last Month</option>
+                    </select>
+                </div>
+                <div class="form-group date-input">
                     <label for="fromDate">From</label>
                     <input type="date" id="fromDate" required>
                 </div>
-                <div class="form-group">
+                <div class="form-group date-input">
                     <label for="toDate">To</label>
                     <input type="date" id="toDate" required>
                 </div>

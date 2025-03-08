@@ -291,6 +291,58 @@ function setDefaultDates() {
     return { fromDate, toDate };
 }
 
+// Function to update dates based on selected range
+function updateDatesFromRange(range) {
+    const toDate = new Date();
+    const fromDate = new Date();
+    
+    switch (range) {
+        case 'today':
+            fromDate.setHours(0, 0, 0, 0);
+            break;
+        case '7days':
+            fromDate.setDate(toDate.getDate() - 7);
+            break;
+        case '1month':
+            fromDate.setMonth(toDate.getMonth() - 1);
+            break;
+        case 'custom':
+            // Don't update the dates for custom range
+            return;
+    }
+    
+    document.getElementById('toDate').value = toDate.toISOString().split('T')[0];
+    document.getElementById('fromDate').value = fromDate.toISOString().split('T')[0];
+    
+    // If not custom range, trigger chart update
+    if (range !== 'custom') {
+        initChart(fromDate, toDate);
+    }
+}
+
+// Function to sync dropdown with date inputs
+function syncDropdownWithDates() {
+    const fromDate = new Date(document.getElementById('fromDate').value);
+    const toDate = new Date(document.getElementById('toDate').value);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Check if dates match any predefined range
+    const diffDays = Math.round((toDate - fromDate) / (1000 * 60 * 60 * 24));
+    const diffMonths = toDate.getMonth() - fromDate.getMonth() + 
+        (12 * (toDate.getFullYear() - fromDate.getFullYear()));
+    
+    if (fromDate.getTime() === today.getTime() && toDate.getTime() === new Date().getTime()) {
+        document.getElementById('dateRange').value = 'today';
+    } else if (diffDays === 7) {
+        document.getElementById('dateRange').value = '7days';
+    } else if (diffMonths === 1) {
+        document.getElementById('dateRange').value = '1month';
+    } else {
+        document.getElementById('dateRange').value = 'custom';
+    }
+}
+
 // Function to get appropriate time unit for chart display
 function getChartTimeUnit(interval) {
     switch (interval) {
@@ -397,17 +449,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load saved symbols
     loadSavedSymbols();
     
-    // Set default dates
+    // Set default dates and update dropdown
     setDefaultDates();
+    document.getElementById('dateRange').value = '7days';
     
     // Initialize chart with default date range
     initChart();
+    
+    // Add date range change handler
+    document.getElementById('dateRange').addEventListener('change', (e) => {
+        updateDatesFromRange(e.target.value);
+    });
+    
+    // Add date input change handlers
+    document.getElementById('fromDate').addEventListener('change', () => {
+        document.getElementById('dateRange').value = 'custom';
+    });
+    
+    document.getElementById('toDate').addEventListener('change', () => {
+        document.getElementById('dateRange').value = 'custom';
+    });
     
     // Add form submit handler
     document.getElementById('dateRangeForm').addEventListener('submit', (e) => {
         e.preventDefault();
         const fromDate = new Date(document.getElementById('fromDate').value);
         const toDate = new Date(document.getElementById('toDate').value);
+        syncDropdownWithDates(); // Sync dropdown with selected dates
         initChart(fromDate, toDate);
     });
 });
