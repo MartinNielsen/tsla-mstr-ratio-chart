@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TSLA/MSTR Ratio Chart</title>
+    <title>TSLA/MSTR Price Ratio Chart</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <style>
         body {
@@ -19,21 +20,23 @@
             background-color: white;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         h1 {
             text-align: center;
             color: #333;
         }
-        .chart-container {
+        #chartContainer {
             position: relative;
             height: 70vh;
             width: 100%;
         }
         .loading {
-            text-align: center;
-            padding: 20px;
-            font-size: 18px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2em;
             color: #666;
         }
         .footer {
@@ -46,17 +49,16 @@
 </head>
 <body>
     <div class="container">
-        <h0>TSLA/MSTR Price Ratio Chart</h1>
-        <div class="loading" id="loading">Loading data, please wait...</div>
-        <div class="chart-container">
+        <h1>TSLA/MSTR Price Ratio Chart</h1>
+        <div id="chartContainer">
+            <div class="loading">Loading data...</div>
             <canvas id="chart"></canvas>
         </div>
         <div class="footer">
             <p>Data source: Yahoo Finance | Last updated: <span id="lastUpdated"></span></p>
         </div>
     </div>
-    <script src="script.js?v=1.5"></script>
-    <!-- Live reload script -->
+    <script src="script.js"></script>
     <script src="livereload.js"></script>
 </body>
 </html>

@@ -1,70 +1,42 @@
-const http = require('http');
-const fs = require('fs');
+const express = require('express');
 const path = require('path');
-const url = require('url');
+const WebSocket = require('ws');
+const fs = require('fs');
 
-// Use a different port to avoid conflicts
-const PORT = 8082;
+const app = express();
+const port = process.env.PORT || 3021;
 
-// MIME types for different file extensions
-const MIME_TYPES = {
-    '.html': 'text/html',
-    '.js': 'text/javascript',
-    '.css': 'text/css',
-    '.json': 'application/json',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.svg': 'image/svg+xml',
-    '.ico': 'image/x-icon'
-};
+// Serve static files
+app.use(express.static(__dirname));
 
-// Create the server
-const server = http.createServer((req, res) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-    
-    // Parse the URL
-    const parsedUrl = url.parse(req.url);
-    
-    // Extract the path from the URL
-    let pathname = `.${parsedUrl.pathname}`;
-    
-    // If path ends with '/', serve index.html
-    if (pathname === './') {
-        pathname = './index.html';
-    }
-    
-    // Get the file extension
-    const ext = path.parse(pathname).ext;
-    
-    // Read the file
-    fs.readFile(pathname, (err, data) => {
-        if (err) {
-            // If the file is not found, return 404
-            if (err.code === 'ENOENT') {
-                console.log(`File ${pathname} not found`);
-                res.writeHead(404, { 'Content-Type': 'text/html' });
-                res.end('404 Not Found');
-                return;
-            }
-            
-            // For other errors, return 500
-            console.error(`Error reading file ${pathname}:`, err);
-            res.writeHead(500, { 'Content-Type': 'text/html' });
-            res.end('500 Internal Server Error');
-            return;
-        }
-        
-        // If the file is found, set the content type and serve the file
-        const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-        res.writeHead(200, { 'Content-Type': contentType });
-        res.end(data);
-    });
+// Main route
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Start the server
-server.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}/`);
-    console.log('Press Ctrl+C to stop the server');
-    console.log('Watching for file changes...');
+// Start HTTP server
+const server = app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+});
+
+// WebSocket server for live reload
+const wss = new WebSocket.Server({ port: 8080 });
+console.log('WebSocket server running on port 8080');
+
+// Watch for file changes
+let timeoutId;
+fs.watch('.', { recursive: true }, (eventType, filename) => {
+    // Ignore node_modules and git directories
+    if (filename && !filename.includes('node_modules') && !filename.includes('.git')) {
+        // Debounce the reload to prevent multiple rapid reloads
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send('reload');
+                }
+            });
+            console.log(`File changed: ${filename}`);
+        }, 100);
+    }
 }); 

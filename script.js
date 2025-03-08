@@ -1,297 +1,168 @@
-// Function to fetch stock data
-async function fetchStockData() {
-    try {
-        console.log("Fetching stock data... (with auto-reload test)");
-        
-        // Try to use the Yahoo Finance API
-        try {
-            const response = await fetch('https://api.allorigins.win/raw?url=' + 
-                encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/TSLA?interval=5m&range=7d'));
-            const tslaData = await response.json();
-            
-            const response2 = await fetch('https://api.allorigins.win/raw?url=' + 
-                encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/MSTR?interval=5m&range=7d'));
-            const mstrData = await response2.json();
-            
-            return { tslaData, mstrData };
-        } catch (apiError) {
-            console.error('Error fetching from Yahoo Finance API, using mock data instead:', apiError);
-            // If API fails, fall back to mock data
-            return getMockData();
-        }
-    } catch (error) {
-        console.error('Error fetching data:', error);
-        return null;
-    }
-}
-
-// Function to generate mock data if API fails
-function getMockData() {
-    console.log("Generating mock data...");
-    
-    // Create mock data for 5 days
-    const now = new Date();
-    const mockData = { tslaData: { chart: { result: [{ timestamp: [], indicators: { quote: [{ close: [] }] } }] } },
-                      mstrData: { chart: { result: [{ timestamp: [], indicators: { quote: [{ close: [] }] } }] } } };
-    
-    // Generate data for the past 5 days
-    for (let day = 4; day >= 0; day--) {
-        const date = new Date(now);
-        date.setDate(date.getDate() - day);
-        date.setHours(9, 30, 0, 0); // Start at 9:30 AM
-        
-        // Generate data points for each day (market hours: 9:30 AM - 4:00 PM)
-        for (let hour = 0; hour < 6.5; hour += 0.5) {
-            const timestamp = Math.floor(new Date(date.getTime() + hour * 60 * 60 * 1000).getTime() / 1000);
-            
-            // Add some randomness to the prices
-            const tslaPrice = 200 + Math.random() * 20;
-            const mstrPrice = (200 + Math.random() * 20) * (0.8 + day * 0.1); // Make MSTR price vary by day
-            
-            mockData.tslaData.chart.result[0].timestamp.push(timestamp);
-            mockData.tslaData.chart.result[0].indicators.quote[0].close.push(tslaPrice);
-            
-            mockData.mstrData.chart.result[0].timestamp.push(timestamp);
-            mockData.mstrData.chart.result[0].indicators.quote[0].close.push(mstrPrice);
-        }
-    }
-    
-    return mockData;
-}
-
-// Function to process data and create ratio
-function processData(tslaData, mstrData) {
-    if (!tslaData || !mstrData || 
-        !tslaData.chart || !mstrData.chart || 
-        !tslaData.chart.result || !mstrData.chart.result ||
-        tslaData.chart.result.length === 0 || mstrData.chart.result.length === 0) {
-        console.error('Invalid data format');
-        return null;
-    }
-    
-    const tslaTimestamps = tslaData.chart.result[0].timestamp;
-    const tslaCloses = tslaData.chart.result[0].indicators.quote[0].close;
-    
-    const mstrTimestamps = mstrData.chart.result[0].timestamp;
-    const mstrCloses = mstrData.chart.result[0].indicators.quote[0].close;
-    
-    // Create maps for easy lookup
-    const tslaMap = new Map();
-    for (let i = 0; i < tslaTimestamps.length; i++) {
-        if (tslaCloses[i] !== null) {
-            tslaMap.set(tslaTimestamps[i], tslaCloses[i]);
-        }
-    }
-    
-    // Calculate ratios for matching timestamps
-    const ratioData = [];
-    for (let i = 0; i < mstrTimestamps.length; i++) {
-        const timestamp = mstrTimestamps[i];
-        const mstrClose = mstrCloses[i];
-        
-        if (mstrClose !== null && tslaMap.has(timestamp)) {
-            const tslaClose = tslaMap.get(timestamp);
-            // Calculate TSLA/MSTR ratio instead of MSTR/TSLA
-            const ratio = tslaClose / mstrClose;
-            const date = new Date(timestamp * 1000);
-            
-            ratioData.push({
-                time: date,
-                ratio: ratio,
-                // Add a day identifier to group by day
-                day: date.toISOString().split('T')[0]
-            });
-        }
-    }
-    
-    console.log(`Processed ${ratioData.length} data points`);
-    return ratioData;
-}
-
-// Function to group data by day
-function groupDataByDay(ratioData) {
-    // Create an array of datasets instead of an object
-    const dayMap = {};
-    
-    // First group by day
-    ratioData.forEach(dataPoint => {
-        if (!dayMap[dataPoint.day]) {
-            dayMap[dataPoint.day] = [];
-        }
-        dayMap[dataPoint.day].push(dataPoint);
-    });
-    
-    console.log(`Found ${Object.keys(dayMap).length} unique days`);
-    
-    // Then create separate datasets for each day
-    const datasets = [];
-    const colors = [
-        'rgba(54, 162, 235, 1)',  // blue
-        'rgba(255, 99, 132, 1)',   // red
-        'rgba(75, 192, 192, 1)',   // green
-        'rgba(255, 159, 64, 1)',   // orange
-        'rgba(153, 102, 255, 1)',  // purple
-        'rgba(255, 205, 86, 1)',   // yellow
-        'rgba(201, 203, 207, 1)'   // grey
-    ];
-    
-    const days = Object.keys(dayMap).sort();
-    console.log("Days found:", days);
-    
-    days.forEach((day, index) => {
-        const color = colors[index % colors.length];
-        const date = new Date(day);
-        const formattedDate = date.toLocaleDateString(undefined, { 
-            weekday: 'short', 
-            month: 'short', 
-            day: 'numeric' 
-        });
-        
-        // Sort data points by time
-        const sortedData = dayMap[day].sort((a, b) => a.time - b.time);
-        
-        console.log(`Day ${day} has ${sortedData.length} data points, using color ${color}`);
-        
-        // Only add datasets that have data points
-        if (sortedData.length > 0) {
-            datasets.push({
-                label: formattedDate,
-                data: sortedData.map(d => ({ x: d.time, y: d.ratio })),
-                borderColor: color,
-                backgroundColor: color.replace('1)', '0.1)'),
-                borderWidth: 2,
-                pointRadius: 1,
-                pointHoverRadius: 5,
-                fill: false,
-                tension: 0.1, // Slight curve for better visualization
-                showLine: true // Ensure lines are shown
-            });
-        }
-    });
-    
-    console.log(`Created ${datasets.length} datasets`);
-    return datasets;
-}
-
-// Function to plot the data
-function plotData(ratioData) {
-    if (!ratioData || ratioData.length === 0) {
-        console.error('No valid ratio data to plot');
-        return;
-    }
-    
-    const ctx = document.getElementById('chart').getContext('2d');
-    
-    // Get array of datasets, one per day
-    const datasets = groupDataByDay(ratioData);
-    console.log("Datasets for chart:", datasets);
-    
-    // Destroy any existing chart
-    if (window.myChart) {
-        window.myChart.destroy();
-    }
-    
-    // Create new chart
-    window.myChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { 
-                    type: 'time',
-                    time: { 
-                        unit: 'hour',
-                        displayFormats: {
-                            hour: 'HH:mm'
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Time'
-                    }
-                },
-                y: { 
-                    beginAtZero: false,
-                    title: {
-                        display: true,
-                        text: 'TSLA/MSTR Ratio'
-                    }
-                }
+// Constants
+const TSLA_SYMBOL = 'TSLA';
+const MSTR_SYMBOL = 'MSTR';
+const CHART_CONFIG = {
+    type: 'line',
+    data: {
+        datasets: [{
+            label: 'TSLA/MSTR Price Ratio',
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1,
+            pointRadius: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            title: {
+                display: true,
+                text: 'Tesla to MicroStrategy Stock Price Ratio'
             },
-            plugins: {
+            tooltip: {
+                mode: 'index',
+                intersect: false,
+            }
+        },
+        scales: {
+            x: {
+                type: 'time',
+                time: {
+                    unit: 'day'
+                },
                 title: {
                     display: true,
-                    text: 'TSLA/MSTR Price Ratio By Day',
-                    font: {
-                        size: 18
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const date = new Date(context.parsed.x);
-                            return `${context.dataset.label} ${date.toLocaleTimeString()} - Ratio: ${context.parsed.y.toFixed(4)}`;
-                        }
-                    }
-                },
-                legend: {
-                    display: true,
-                    position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        boxWidth: 10,
-                        padding: 20
-                    }
+                    text: 'Date'
                 }
             },
-            interaction: {
-                mode: 'nearest',
-                intersect: false
+            y: {
+                title: {
+                    display: true,
+                    text: 'Price Ratio (TSLA/MSTR)'
+                }
             }
         }
-    });
+    }
+};
+
+// Function to fetch stock data
+async function fetchStockData(symbol, startDate, endDate) {
+    const period1 = Math.floor(startDate.getTime() / 1000);
+    const period2 = Math.floor(endDate.getTime() / 1000);
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${period1}&period2=${period2}&interval=1d`;
+    const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`;
     
-    // Update last updated timestamp
-    const lastUpdatedElement = document.getElementById('lastUpdated');
-    if (lastUpdatedElement) {
-        const now = new Date();
-        lastUpdatedElement.textContent = now.toLocaleString();
-    }
-}
-
-// Main function to fetch data and create chart
-async function main() {
+    console.log(`Fetching data for ${symbol}...`);
+    console.log('Yahoo Finance URL:', yahooUrl);
+    console.log('Proxy URL:', url);
+    
     try {
-        console.log("Starting main function...");
-        // Show loading indicator
-        const loadingElement = document.getElementById('loading');
+        const response = await fetch(url);
+        console.log(`Response status for ${symbol}:`, response.status);
         
-        const data = await fetchStockData();
-        if (!data) {
-            if (loadingElement) loadingElement.textContent = 'Failed to fetch stock data. Please try again later.';
-            return;
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const ratioData = processData(data.tslaData, data.mstrData);
-        if (!ratioData) {
-            if (loadingElement) loadingElement.textContent = 'Failed to process stock data. Please try again later.';
-            return;
+        const text = await response.text();
+        console.log(`Raw response for ${symbol}:`, text.substring(0, 200) + '...');
+        
+        const data = JSON.parse(text);
+        console.log(`Parsed data for ${symbol}:`, data);
+        
+        if (!data.chart || !data.chart.result || !data.chart.result[0]) {
+            throw new Error(`Invalid data format for ${symbol}`);
         }
         
-        // Hide loading indicator
-        if (loadingElement) loadingElement.style.display = 'none';
-        
-        plotData(ratioData);
+        return data.chart.result[0];
     } catch (error) {
-        console.error('Error:', error);
-        const loadingElement = document.getElementById('loading');
-        if (loadingElement) loadingElement.textContent = 'An error occurred. Please try again later.';
+        console.error(`Error fetching ${symbol} data:`, error);
+        console.error('Error details:', {
+            symbol,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            period1,
+            period2
+        });
+        throw error;
     }
 }
 
-// Run the main function when the page loads
-window.addEventListener('DOMContentLoaded', main); 
+// Function to calculate price ratios
+function calculateRatios(tslaData, mstrData) {
+    console.log('Calculating ratios with data:', {
+        tslaData: {
+            timestamps: tslaData.timestamp?.length,
+            prices: tslaData.indicators?.quote[0]?.close?.length
+        },
+        mstrData: {
+            timestamps: mstrData.timestamp?.length,
+            prices: mstrData.indicators?.quote[0]?.close?.length
+        }
+    });
+
+    const ratios = [];
+    const timestamps = tslaData.timestamp;
+    const tslaPrices = tslaData.indicators.quote[0].close;
+    const mstrPrices = mstrData.indicators.quote[0].close;
+
+    for (let i = 0; i < timestamps.length; i++) {
+        if (tslaPrices[i] && mstrPrices[i]) {
+            ratios.push({
+                x: new Date(timestamps[i] * 1000),
+                y: tslaPrices[i] / mstrPrices[i]
+            });
+        }
+    }
+
+    console.log(`Generated ${ratios.length} ratio points`);
+    console.log('Sample ratios:', ratios.slice(0, 3));
+    return ratios;
+}
+
+// Main function to initialize the chart
+async function initChart() {
+    console.log('Initializing chart...');
+    const ctx = document.getElementById('chart').getContext('2d');
+    const chart = new Chart(ctx, CHART_CONFIG);
+    
+    try {
+        // Fetch one year of data
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setFullYear(endDate.getFullYear() - 1);
+        
+        console.log('Date range:', {
+            start: startDate.toISOString(),
+            end: endDate.toISOString()
+        });
+
+        const [tslaData, mstrData] = await Promise.all([
+            fetchStockData(TSLA_SYMBOL, startDate, endDate),
+            fetchStockData(MSTR_SYMBOL, startDate, endDate)
+        ]);
+
+        console.log('Successfully fetched both stock data');
+
+        const ratios = calculateRatios(tslaData, mstrData);
+        chart.data.datasets[0].data = ratios;
+        chart.update();
+        console.log('Chart updated with new data');
+
+        // Update last updated timestamp
+        const lastUpdatedElement = document.getElementById('lastUpdated');
+        if (lastUpdatedElement) {
+            lastUpdatedElement.textContent = new Date().toLocaleString();
+        }
+
+        // Hide loading message
+        document.querySelector('.loading').style.display = 'none';
+    } catch (error) {
+        console.error('Error in initChart:', error);
+        document.querySelector('.loading').textContent = 'Error loading data. Please try again later.';
+    }
+}
+
+// Initialize the chart when the page loads
+console.log('Setting up DOMContentLoaded listener...');
+document.addEventListener('DOMContentLoaded', initChart); 
