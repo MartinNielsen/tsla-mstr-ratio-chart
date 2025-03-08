@@ -13,8 +13,37 @@ const INTERVALS = {
 
 // Version checking functionality
 let currentVersion = null;
+let wsReloadEnabled = false;
 
+// Try to establish WebSocket connection for local development
+try {
+    const socket = new WebSocket('ws://localhost:8080');
+    
+    socket.addEventListener('open', () => {
+        console.log('Live reload WebSocket connected');
+        wsReloadEnabled = true;
+    });
+
+    socket.addEventListener('message', (event) => {
+        if (event.data === 'reload') {
+            console.log('Live reload triggered via WebSocket');
+            window.location.reload();
+        }
+    });
+
+    socket.addEventListener('error', () => {
+        console.log('WebSocket connection failed, falling back to version polling');
+        wsReloadEnabled = false;
+    });
+} catch (error) {
+    console.log('WebSocket not available, using version polling');
+    wsReloadEnabled = false;
+}
+
+// Version polling fallback (for GitHub Pages)
 async function checkVersion() {
+    if (wsReloadEnabled) return; // Skip if WebSocket is working
+    
     try {
         const response = await fetch('version.json?' + new Date().getTime());
         const data = await response.json();
@@ -30,10 +59,11 @@ async function checkVersion() {
     }
 }
 
-// Check for new version every 30 seconds
-setInterval(checkVersion, 30000);
-// Initial version check
-checkVersion();
+// Check for new version every 5 seconds if WebSocket is not available
+if (!wsReloadEnabled) {
+    setInterval(checkVersion, 5000);
+    checkVersion(); // Initial version check
+}
 
 // Function to determine appropriate interval based on date range
 function getIntervalForDateRange(fromDate, toDate) {
