@@ -1,6 +1,31 @@
 // Constants
 const TSLA_SYMBOL = 'TSLA';
 const MSTR_SYMBOL = 'MSTR';
+let chartInstance = null; // Add chart instance tracking
+
+// Add interval constants
+const INTERVALS = {
+    FIVE_MIN: '5m',
+    THIRTY_MIN: '30m',
+    ONE_HOUR: '1h',
+    ONE_DAY: '1d'
+};
+
+// Function to determine appropriate interval based on date range
+function getIntervalForDateRange(fromDate, toDate) {
+    const daysDifference = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24));
+    
+    if (daysDifference <= 7) {
+        return INTERVALS.FIVE_MIN;
+    } else if (daysDifference <= 30) {
+        return INTERVALS.THIRTY_MIN;
+    } else if (daysDifference <= 90) {
+        return INTERVALS.ONE_HOUR;
+    } else {
+        return INTERVALS.ONE_DAY;
+    }
+}
+
 const CHART_CONFIG = {
     type: 'line',
     data: {
@@ -49,10 +74,16 @@ const CHART_CONFIG = {
 async function fetchStockData(symbol, startDate, endDate) {
     const period1 = Math.floor(startDate.getTime() / 1000);
     const period2 = Math.floor(endDate.getTime() / 1000);
-    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${period1}&period2=${period2}&interval=1d`;
+    const interval = getIntervalForDateRange(startDate, endDate);
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${period1}&period2=${period2}&interval=${interval}`;
     const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`;
     
     console.log(`Fetching data for ${symbol}...`);
+    console.log('Date range:', {
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        interval: interval
+    });
     console.log('Yahoo Finance URL:', yahooUrl);
     console.log('Proxy URL:', url);
     
@@ -120,33 +151,86 @@ function calculateRatios(tslaData, mstrData) {
     return ratios;
 }
 
-// Main function to initialize the chart
-async function initChart() {
+// Function to set default dates (last 7 days)
+function setDefaultDates() {
+    const toDate = new Date();
+    const fromDate = new Date();
+    fromDate.setDate(toDate.getDate() - 7);
+    
+    document.getElementById('toDate').value = toDate.toISOString().split('T')[0];
+    document.getElementById('fromDate').value = fromDate.toISOString().split('T')[0];
+    
+    return { fromDate, toDate };
+}
+
+// Function to get appropriate time unit for chart display
+function getChartTimeUnit(interval) {
+    switch (interval) {
+        case INTERVALS.FIVE_MIN:
+        case INTERVALS.THIRTY_MIN:
+            return 'hour';
+        case INTERVALS.ONE_HOUR:
+            return 'day';
+        case INTERVALS.ONE_DAY:
+        default:
+            return 'day';
+    }
+}
+
+// Function to initialize the chart
+async function initChart(startDate = null, endDate = null) {
     console.log('Initializing chart...');
     const ctx = document.getElementById('chart').getContext('2d');
-    const chart = new Chart(ctx, CHART_CONFIG);
+    
+    // Destroy existing chart if it exists
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+    
+    // Get dates before creating chart config
+    const dates = startDate && endDate ? { fromDate: startDate, toDate: endDate } : setDefaultDates();
+    const interval = getIntervalForDateRange(dates.fromDate, dates.toDate);
+    
+    // Update chart config with appropriate time unit
+    const chartConfig = {
+        ...CHART_CONFIG,
+        options: {
+            ...CHART_CONFIG.options,
+            scales: {
+                ...CHART_CONFIG.options.scales,
+                x: {
+                    ...CHART_CONFIG.options.scales.x,
+                    time: {
+                        unit: getChartTimeUnit(interval),
+                        displayFormats: {
+                            hour: 'MMM d, HH:mm',
+                            day: 'MMM d'
+                        }
+                    }
+                }
+            }
+        }
+    };
+    
+    // Create new chart instance with updated config
+    chartInstance = new Chart(ctx, chartConfig);
     
     try {
-        // Fetch one year of data
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setFullYear(endDate.getFullYear() - 1);
-        
         console.log('Date range:', {
-            start: startDate.toISOString(),
-            end: endDate.toISOString()
+            start: dates.fromDate.toISOString(),
+            end: dates.toDate.toISOString()
         });
 
         const [tslaData, mstrData] = await Promise.all([
-            fetchStockData(TSLA_SYMBOL, startDate, endDate),
-            fetchStockData(MSTR_SYMBOL, startDate, endDate)
+            fetchStockData(TSLA_SYMBOL, dates.fromDate, dates.toDate),
+            fetchStockData(MSTR_SYMBOL, dates.fromDate, dates.toDate)
         ]);
 
         console.log('Successfully fetched both stock data');
 
         const ratios = calculateRatios(tslaData, mstrData);
-        chart.data.datasets[0].data = ratios;
-        chart.update();
+        chartInstance.data.datasets[0].data = ratios;
+        chartInstance.update();
         console.log('Chart updated with new data');
 
         // Update last updated timestamp
@@ -163,6 +247,27 @@ async function initChart() {
     }
 }
 
-// Initialize the chart when the page loads
+// Initialize the chart and set up event listeners when the page loads
 console.log('Setting up DOMContentLoaded listener...');
-document.addEventListener('DOMContentLoaded', initChart); 
+document.addEventListener('DOMContentLoaded', () => {
+    // Set default dates and initialize chart
+    setDefaultDates();
+    initChart();
+    
+    // Add form submit handler
+    document.getElementById('dateRangeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const fromDate = new Date(document.getElementById('fromDate').value);
+        const toDate = new Date(document.getElementById('toDate').value);
+        
+        // Add one day to toDate to include the selected day
+        toDate.setDate(toDate.getDate() + 1);
+        
+        // Show loading message
+        document.querySelector('.loading').style.display = 'block';
+        
+        // Reinitialize chart with new date range
+        await initChart(fromDate, toDate);
+    });
+}); 
