@@ -11,6 +11,30 @@ const INTERVALS = {
     ONE_DAY: '1d'
 };
 
+// Version checking functionality
+let currentVersion = null;
+
+async function checkVersion() {
+    try {
+        const response = await fetch('version.json?' + new Date().getTime());
+        const data = await response.json();
+        
+        if (currentVersion === null) {
+            currentVersion = data.buildTime;
+        } else if (currentVersion !== data.buildTime) {
+            console.log('New version detected. Reloading...');
+            window.location.reload(true);
+        }
+    } catch (error) {
+        console.error('Error checking version:', error);
+    }
+}
+
+// Check for new version every 30 seconds
+setInterval(checkVersion, 30000);
+// Initial version check
+checkVersion();
+
 // Function to determine appropriate interval based on date range
 function getIntervalForDateRange(fromDate, toDate) {
     const daysDifference = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24));

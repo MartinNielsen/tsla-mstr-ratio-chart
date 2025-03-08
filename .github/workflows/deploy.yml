@@ -21,6 +21,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
+      - name: Update version file
+        run: |
+          echo "{\"buildTime\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"}" > version.json
+      
       - name: Setup Pages
         uses: actions/configure-pages@v4
       

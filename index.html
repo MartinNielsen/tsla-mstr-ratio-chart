@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TSLA/MSTR Price Ratio Analysis</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        // Add a version timestamp to script URLs
+        window.versionTimestamp = new Date().getTime();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <style>
@@ -217,6 +221,8 @@
             Data source: Yahoo Finance | Last updated: <span id="lastUpdated"></span>
         </div>
     </div>
-    <script src="script.js"></script>
+    <script>
+        document.write('<script src="script.js?v=' + window.versionTimestamp + '"><\/script>');
+    </script>
 </body>
 </html>
