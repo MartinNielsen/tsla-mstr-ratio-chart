@@ -1,7 +1,7 @@
 // Constants
-const TSLA_SYMBOL = 'TSLA';
-const MSTR_SYMBOL = 'MSTR';
-let chartInstance = null; // Add chart instance tracking
+const DEFAULT_SYMBOL1 = 'TSLA';
+const DEFAULT_SYMBOL2 = 'MSTR';
+let chartInstance = null;
 
 // Add interval constants
 const INTERVALS = {
@@ -201,7 +201,6 @@ async function fetchStockData(symbol, startDate, endDate) {
         interval: interval
     });
     console.log('Yahoo Finance URL:', yahooUrl);
-    console.log('Proxy URL:', url);
     
     try {
         const response = await fetch(url);
@@ -211,50 +210,46 @@ async function fetchStockData(symbol, startDate, endDate) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const text = await response.text();
-        console.log(`Raw response for ${symbol}:`, text.substring(0, 200) + '...');
-        
-        const data = JSON.parse(text);
-        console.log(`Parsed data for ${symbol}:`, data);
+        const data = await response.json();
         
         if (!data.chart || !data.chart.result || !data.chart.result[0]) {
             throw new Error(`Invalid data format for ${symbol}`);
         }
         
-        return data.chart.result[0];
+        // Validate that we have price data
+        const result = data.chart.result[0];
+        if (!result.indicators?.quote?.[0]?.close || result.indicators.quote[0].close.length === 0) {
+            throw new Error(`No price data available for ${symbol}`);
+        }
+        
+        return result;
     } catch (error) {
         console.error(`Error fetching ${symbol} data:`, error);
-        console.error('Error details:', {
-            symbol,
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-            period1,
-            period2
-        });
+        document.querySelector('.loading').textContent = `Error loading data for ${symbol}. Please try again later.`;
         throw error;
     }
 }
 
 // Function to calculate price ratios split by day
-function calculateRatios(tslaData, mstrData) {
+function calculateRatios(stock1Data, stock2Data) {
     console.log('Calculating ratios with data:', {
-        tslaData: {
-            timestamps: tslaData.timestamp?.length,
-            prices: tslaData.indicators?.quote[0]?.close?.length
+        stock1Data: {
+            timestamps: stock1Data.timestamp?.length,
+            prices: stock1Data.indicators?.quote[0]?.close?.length
         },
-        mstrData: {
-            timestamps: mstrData.timestamp?.length,
-            prices: mstrData.indicators?.quote[0]?.close?.length
+        stock2Data: {
+            timestamps: stock2Data.timestamp?.length,
+            prices: stock2Data.indicators?.quote[0]?.close?.length
         }
     });
 
     const ratiosByDay = new Map();
-    const timestamps = tslaData.timestamp;
-    const tslaPrices = tslaData.indicators.quote[0].close;
-    const mstrPrices = mstrData.indicators.quote[0].close;
+    const timestamps = stock1Data.timestamp;
+    const stock1Prices = stock1Data.indicators.quote[0].close;
+    const stock2Prices = stock2Data.indicators.quote[0].close;
 
     for (let i = 0; i < timestamps.length; i++) {
-        if (tslaPrices[i] && mstrPrices[i]) {
+        if (stock1Prices[i] && stock2Prices[i]) {
             const date = new Date(timestamps[i] * 1000);
             const dayKey = date.toISOString().split('T')[0];
             
@@ -264,13 +259,24 @@ function calculateRatios(tslaData, mstrData) {
             
             ratiosByDay.get(dayKey).push({
                 x: date,
-                y: tslaPrices[i] / mstrPrices[i]
+                y: stock1Prices[i] / stock2Prices[i]
             });
         }
     }
 
     console.log(`Generated ratios for ${ratiosByDay.size} days`);
     return ratiosByDay;
+}
+
+// Function to get date range, either from parameters or default
+function getDateRange(startDate = null, endDate = null) {
+    if (startDate && endDate) {
+        // Add one day to endDate to include the selected day
+        const adjustedEndDate = new Date(endDate);
+        adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+        return { fromDate: startDate, toDate: adjustedEndDate };
+    }
+    return setDefaultDates();
 }
 
 // Function to set default dates (last 7 days)
@@ -302,40 +308,25 @@ function getChartTimeUnit(interval) {
 // Function to initialize the chart
 async function initChart(startDate = null, endDate = null) {
     console.log('Initializing chart...');
-    const ctx = document.getElementById('chart').getContext('2d');
     
-    // Destroy existing chart if it exists
-    if (chartInstance) {
-        chartInstance.destroy();
+    // Show loading message
+    document.querySelector('.loading').style.display = 'block';
+    
+    // Get the date range
+    const dates = getDateRange(startDate, endDate);
+    
+    // Get the current symbols
+    const symbol1 = document.getElementById('symbol1').value.toUpperCase();
+    const symbol2 = document.getElementById('symbol2').value.toUpperCase();
+    
+    // Save the symbols
+    saveSymbols(symbol1, symbol2);
+    
+    // Initialize chart if not already done
+    if (!chartInstance) {
+        const ctx = document.getElementById('chart').getContext('2d');
+        chartInstance = new Chart(ctx, CHART_CONFIG);
     }
-    
-    // Get dates before creating chart config
-    const dates = startDate && endDate ? { fromDate: startDate, toDate: endDate } : setDefaultDates();
-    const interval = getIntervalForDateRange(dates.fromDate, dates.toDate);
-    
-    // Update chart config with appropriate time unit
-    const chartConfig = {
-        ...CHART_CONFIG,
-        options: {
-            ...CHART_CONFIG.options,
-            scales: {
-                ...CHART_CONFIG.options.scales,
-                x: {
-                    ...CHART_CONFIG.options.scales.x,
-                    time: {
-                        unit: getChartTimeUnit(interval),
-                        displayFormats: {
-                            hour: 'MMM d, HH:mm',
-                            day: 'MMM d'
-                        }
-                    }
-                }
-            }
-        }
-    };
-    
-    // Create new chart instance with updated config
-    chartInstance = new Chart(ctx, chartConfig);
     
     try {
         console.log('Date range:', {
@@ -343,14 +334,29 @@ async function initChart(startDate = null, endDate = null) {
             end: dates.toDate.toISOString()
         });
 
-        const [tslaData, mstrData] = await Promise.all([
-            fetchStockData(TSLA_SYMBOL, dates.fromDate, dates.toDate),
-            fetchStockData(MSTR_SYMBOL, dates.fromDate, dates.toDate)
+        const [stock1Data, stock2Data] = await Promise.all([
+            fetchStockData(symbol1, dates.fromDate, dates.toDate),
+            fetchStockData(symbol2, dates.fromDate, dates.toDate)
         ]);
 
         console.log('Successfully fetched both stock data');
 
-        const ratiosByDay = calculateRatios(tslaData, mstrData);
+        const ratiosByDay = calculateRatios(stock1Data, stock2Data);
+        
+        // Update chart title
+        chartInstance.options.plugins.title = {
+            display: true,
+            text: `${symbol1}/${symbol2} Price Ratio`,
+            color: '#f1f5f9',
+            font: {
+                size: 16,
+                family: "'Inter', sans-serif",
+                weight: '500'
+            },
+            padding: {
+                bottom: 20
+            }
+        };
         
         // Create a dataset for each day with the same color
         const datasets = Array.from(ratiosByDay.entries()).map(([day, data]) => ({
@@ -386,27 +392,39 @@ async function initChart(startDate = null, endDate = null) {
     }
 }
 
-// Initialize the chart and set up event listeners when the page loads
-console.log('Setting up DOMContentLoaded listener...');
+// Initialize the page
 document.addEventListener('DOMContentLoaded', () => {
-    // Set default dates and initialize chart
+    // Load saved symbols
+    loadSavedSymbols();
+    
+    // Set default dates
     setDefaultDates();
+    
+    // Initialize chart with default date range
     initChart();
     
     // Add form submit handler
-    document.getElementById('dateRangeForm').addEventListener('submit', async (e) => {
+    document.getElementById('dateRangeForm').addEventListener('submit', (e) => {
         e.preventDefault();
-        
         const fromDate = new Date(document.getElementById('fromDate').value);
         const toDate = new Date(document.getElementById('toDate').value);
-        
-        // Add one day to toDate to include the selected day
-        toDate.setDate(toDate.getDate() + 1);
-        
-        // Show loading message
-        document.querySelector('.loading').style.display = 'block';
-        
-        // Reinitialize chart with new date range
-        await initChart(fromDate, toDate);
+        initChart(fromDate, toDate);
     });
-}); 
+});
+
+// Load saved symbols from localStorage or use defaults
+function loadSavedSymbols() {
+    const symbol1 = localStorage.getItem('symbol1') || DEFAULT_SYMBOL1;
+    const symbol2 = localStorage.getItem('symbol2') || DEFAULT_SYMBOL2;
+    
+    document.getElementById('symbol1').value = symbol1;
+    document.getElementById('symbol2').value = symbol2;
+    
+    return { symbol1, symbol2 };
+}
+
+// Save symbols to localStorage
+function saveSymbols(symbol1, symbol2) {
+    localStorage.setItem('symbol1', symbol1);
+    localStorage.setItem('symbol2', symbol2);
+} 

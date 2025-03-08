@@ -127,6 +127,30 @@
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
         }
 
+        input[type="text"] {
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: inherit;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            background: rgba(15, 23, 42, 0.6);
+            transition: border-color 0.2s;
+            text-transform: uppercase;
+            width: 120px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        input[type="text"]::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+
         button {
             background-color: var(--primary-color);
             color: white;
@@ -194,12 +218,20 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>TSLA/MSTR Price Ratio Analysis</h1>
-            <p>Track the price relationship between Tesla and MicroStrategy stocks</p>
+            <h1>Stock Price Ratio Analysis</h1>
+            <p>Track the price relationship between any two stocks</p>
         </div>
 
         <div class="card">
             <form id="dateRangeForm" class="date-range-form">
+                <div class="form-group">
+                    <label for="symbol1">First Stock Symbol</label>
+                    <input type="text" id="symbol1" required placeholder="e.g. TSLA" pattern="[A-Za-z]+" maxlength="5">
+                </div>
+                <div class="form-group">
+                    <label for="symbol2">Second Stock Symbol</label>
+                    <input type="text" id="symbol2" required placeholder="e.g. MSTR" pattern="[A-Za-z]+" maxlength="5">
+                </div>
                 <div class="form-group">
                     <label for="fromDate">From</label>
                     <input type="date" id="fromDate" required>
