@@ -36,6 +36,36 @@ if (!fs.existsSync('version.json')) {
     updateVersionJson();
 }
 
+// ANSI escape codes for colors and cursor control
+const ANSI = {
+    CLEAR_LINE: '\x1b[2K',
+    CURSOR_UP: '\x1b[1A',
+    MOVE_START: '\x1b[0G',
+    GREEN: '\x1b[32m',
+    YELLOW: '\x1b[33m',
+    RESET: '\x1b[0m'
+};
+
+let lastChangeTime = null;
+let updateInterval;
+
+// Function to format the time since last change
+function getTimeSinceLastChange() {
+    if (!lastChangeTime) return 'No changes detected yet';
+    const seconds = Math.floor((Date.now() - lastChangeTime) / 1000);
+    return `${seconds} seconds since last change`;
+}
+
+// Function to update the status line
+function updateStatusLine() {
+    process.stdout.write(
+        `${ANSI.CLEAR_LINE}${ANSI.MOVE_START}${ANSI.YELLOW}[${new Date().toLocaleTimeString()}] ${getTimeSinceLastChange()}${ANSI.RESET}`
+    );
+}
+
+// Start the status line update interval
+updateInterval = setInterval(updateStatusLine, 1000);
+
 // Watch for file changes
 let timeoutId;
 fs.watch('.', { recursive: true }, (eventType, filename) => {
@@ -57,7 +87,22 @@ fs.watch('.', { recursive: true }, (eventType, filename) => {
                     client.send('reload');
                 }
             });
-            console.log(`File changed: ${filename}`);
+
+            // Clear the current status line
+            process.stdout.write(`${ANSI.CLEAR_LINE}${ANSI.MOVE_START}`);
+            
+            // Log the change with timestamp
+            const timestamp = new Date().toLocaleString();
+            console.log(`${ANSI.GREEN}[${timestamp}] File changed: ${filename}${ANSI.RESET}`);
+            
+            // Update last change time
+            lastChangeTime = Date.now();
         }, 100);
     }
+});
+
+// Clean up interval on process exit
+process.on('SIGINT', () => {
+    clearInterval(updateInterval);
+    process.exit();
 }); 
