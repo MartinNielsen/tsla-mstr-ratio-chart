@@ -45,11 +45,70 @@
             font-size: 14px;
             color: #666;
         }
+        .date-range-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+        }
+        #dateRangeForm {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+        .date-inputs {
+            display: flex;
+            gap: 20px;
+        }
+        .date-field {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .date-field label {
+            font-weight: 500;
+            color: #333;
+        }
+        .date-field input[type="date"] {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button[type="submit"] {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        button[type="submit"]:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>TSLA/MSTR Price Ratio Chart</h1>
+        <div class="date-range-container">
+            <form id="dateRangeForm">
+                <div class="date-inputs">
+                    <div class="date-field">
+                        <label for="fromDate">From:</label>
+                        <input type="date" id="fromDate" name="fromDate" required>
+                    </div>
+                    <div class="date-field">
+                        <label for="toDate">To:</label>
+                        <input type="date" id="toDate" name="toDate" required>
+                    </div>
+                </div>
+                <button type="submit">Update Chart</button>
+            </form>
+        </div>
         <div id="chartContainer">
             <div class="loading">Loading data...</div>
             <canvas id="chart"></canvas>
