@@ -26,15 +26,24 @@ function getIntervalForDateRange(fromDate, toDate) {
     }
 }
 
+// Function to generate a color for each day's line
+function generateLineColor(index) {
+    const colors = [
+        'rgb(75, 192, 192)',   // teal
+        'rgb(255, 99, 132)',   // pink
+        'rgb(54, 162, 235)',   // blue
+        'rgb(255, 206, 86)',   // yellow
+        'rgb(153, 102, 255)',  // purple
+        'rgb(255, 159, 64)',   // orange
+        'rgb(75, 192, 75)'     // green
+    ];
+    return colors[index % colors.length];
+}
+
 const CHART_CONFIG = {
     type: 'line',
     data: {
-        datasets: [{
-            label: 'TSLA/MSTR Price Ratio',
-            borderColor: 'rgb(75, 192, 192)',
-            tension: 0.1,
-            pointRadius: 1
-        }]
+        datasets: []  // Will be populated with daily datasets
     },
     options: {
         responsive: true,
@@ -53,11 +62,15 @@ const CHART_CONFIG = {
             x: {
                 type: 'time',
                 time: {
-                    unit: 'day'
+                    unit: 'hour',
+                    displayFormats: {
+                        hour: 'HH:mm',
+                        day: 'MMM d'
+                    }
                 },
                 title: {
                     display: true,
-                    text: 'Date'
+                    text: 'Time'
                 }
             },
             y: {
@@ -119,7 +132,7 @@ async function fetchStockData(symbol, startDate, endDate) {
     }
 }
 
-// Function to calculate price ratios
+// Function to calculate price ratios split by day
 function calculateRatios(tslaData, mstrData) {
     console.log('Calculating ratios with data:', {
         tslaData: {
@@ -132,23 +145,29 @@ function calculateRatios(tslaData, mstrData) {
         }
     });
 
-    const ratios = [];
+    const ratiosByDay = new Map();
     const timestamps = tslaData.timestamp;
     const tslaPrices = tslaData.indicators.quote[0].close;
     const mstrPrices = mstrData.indicators.quote[0].close;
 
     for (let i = 0; i < timestamps.length; i++) {
         if (tslaPrices[i] && mstrPrices[i]) {
-            ratios.push({
-                x: new Date(timestamps[i] * 1000),
+            const date = new Date(timestamps[i] * 1000);
+            const dayKey = date.toISOString().split('T')[0];
+            
+            if (!ratiosByDay.has(dayKey)) {
+                ratiosByDay.set(dayKey, []);
+            }
+            
+            ratiosByDay.get(dayKey).push({
+                x: date,
                 y: tslaPrices[i] / mstrPrices[i]
             });
         }
     }
 
-    console.log(`Generated ${ratios.length} ratio points`);
-    console.log('Sample ratios:', ratios.slice(0, 3));
-    return ratios;
+    console.log(`Generated ratios for ${ratiosByDay.size} days`);
+    return ratiosByDay;
 }
 
 // Function to set default dates (last 7 days)
@@ -228,8 +247,19 @@ async function initChart(startDate = null, endDate = null) {
 
         console.log('Successfully fetched both stock data');
 
-        const ratios = calculateRatios(tslaData, mstrData);
-        chartInstance.data.datasets[0].data = ratios;
+        const ratiosByDay = calculateRatios(tslaData, mstrData);
+        
+        // Create a dataset for each day with the same color
+        const datasets = Array.from(ratiosByDay.entries()).map(([day, data]) => ({
+            label: `${day}`,
+            data: data,
+            borderColor: 'rgb(75, 192, 192)',  // Using a consistent teal color for all lines
+            tension: 0.1,
+            pointRadius: 1,
+            fill: false
+        }));
+
+        chartInstance.data.datasets = datasets;
         chartInstance.update();
         console.log('Chart updated with new data');
 
