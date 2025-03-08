@@ -1,3 +1,17 @@
+/**
+ * DEVELOPMENT SERVER ONLY
+ * ----------------------
+ * This file is strictly for local development purposes and should NOT be deployed.
+ * It provides:
+ * 1. Local static file serving
+ * 2. Live reload functionality via WebSocket
+ * 3. File watching and automatic version updates
+ * 
+ * For production deployment:
+ * - Use GitHub Pages or another static file host
+ * - This server is NOT needed and should NOT be included in the production build
+ */
+
 const express = require('express');
 const path = require('path');
 const WebSocket = require('ws');
