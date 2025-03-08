@@ -56,6 +56,9 @@ const CHART_CONFIG = {
             tooltip: {
                 mode: 'index',
                 intersect: false,
+            },
+            legend: {
+                display: false  // Hide the legend completely
             }
         },
         scales: {
@@ -251,7 +254,7 @@ async function initChart(startDate = null, endDate = null) {
         
         // Create a dataset for each day with the same color
         const datasets = Array.from(ratiosByDay.entries()).map(([day, data]) => ({
-            label: `${day}`,
+            label: '',  // Removing the day label
             data: data,
             borderColor: 'rgb(75, 192, 192)',  // Using a consistent teal color for all lines
             tension: 0.1,
