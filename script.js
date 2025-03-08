@@ -285,8 +285,9 @@ function setDefaultDates() {
     const fromDate = new Date();
     fromDate.setDate(toDate.getDate() - 7);
     
-    document.getElementById('toDate').value = toDate.toISOString().split('T')[0];
-    document.getElementById('fromDate').value = fromDate.toISOString().split('T')[0];
+    // Update Flatpickr instances instead of directly setting input values
+    fromDatePicker.setDate(fromDate);
+    toDatePicker.setDate(toDate);
     
     return { fromDate, toDate };
 }
@@ -311,8 +312,9 @@ function updateDatesFromRange(range) {
             return;
     }
     
-    document.getElementById('toDate').value = toDate.toISOString().split('T')[0];
-    document.getElementById('fromDate').value = fromDate.toISOString().split('T')[0];
+    // Update Flatpickr instances
+    fromDatePicker.setDate(fromDate);
+    toDatePicker.setDate(toDate);
     
     // If not custom range, trigger chart update
     if (range !== 'custom') {
@@ -398,7 +400,10 @@ async function initChart(startDate = null, endDate = null) {
         // Update chart title
         chartInstance.options.plugins.title = {
             display: true,
-            text: `${symbol1}/${symbol2} Price Ratio`,
+            text: [
+                `${symbol1}/${symbol2} Price Ratio`,
+                `${dates.fromDate.toISOString().split('T')[0]} - ${dates.toDate.toISOString().split('T')[0]}`
+            ],
             color: '#f1f5f9',
             font: {
                 size: 16,
@@ -444,8 +449,35 @@ async function initChart(startDate = null, endDate = null) {
     }
 }
 
+// Initialize Flatpickr instances
+let fromDatePicker, toDatePicker;
+
 // Initialize the page
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Flatpickr for date inputs
+    const flatpickrConfig = {
+        dateFormat: "Y-m-d",
+        altInput: true,
+        altFormat: "Y-m-d",
+        theme: "dark",
+        animate: true,
+        allowInput: true
+    };
+
+    fromDatePicker = flatpickr("#fromDate", {
+        ...flatpickrConfig,
+        onChange: () => {
+            document.getElementById('dateRange').value = 'custom';
+        }
+    });
+
+    toDatePicker = flatpickr("#toDate", {
+        ...flatpickrConfig,
+        onChange: () => {
+            document.getElementById('dateRange').value = 'custom';
+        }
+    });
+
     // Load saved symbols
     loadSavedSymbols();
     
@@ -461,20 +493,11 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDatesFromRange(e.target.value);
     });
     
-    // Add date input change handlers
-    document.getElementById('fromDate').addEventListener('change', () => {
-        document.getElementById('dateRange').value = 'custom';
-    });
-    
-    document.getElementById('toDate').addEventListener('change', () => {
-        document.getElementById('dateRange').value = 'custom';
-    });
-    
     // Add form submit handler
     document.getElementById('dateRangeForm').addEventListener('submit', (e) => {
         e.preventDefault();
-        const fromDate = new Date(document.getElementById('fromDate').value);
-        const toDate = new Date(document.getElementById('toDate').value);
+        const fromDate = fromDatePicker.selectedDates[0];
+        const toDate = toDatePicker.selectedDates[0];
         syncDropdownWithDates(); // Sync dropdown with selected dates
         initChart(fromDate, toDate);
     });
