@@ -3,121 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TSLA/MSTR Price Ratio Chart</title>
+    <title>TSLA/MSTR Price Ratio Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
+        :root {
+            --primary-color: #3b82f6;
+            --primary-color-hover: #60a5fa;
+            --background-start: #000000;
+            --background-mid: #1e3a8a;
+            --background-end: #312e81;
+            --sunrise-purple: rgba(147, 51, 234, 0.2);
+            --sunrise-color: rgba(255, 106, 0, 0.6);
+            --card-background: rgba(30, 41, 59, 0.7);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: rgba(148, 163, 184, 0.1);
+            --card-shadow: rgba(0, 0, 0, 0.25);
         }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: 
+                radial-gradient(
+                    circle at 98% 98%,
+                    var(--sunrise-color) 0%,
+                    var(--sunrise-purple) 25%,
+                    transparent 45%
+                ),
+                linear-gradient(
+                    135deg,
+                    var(--background-start) 0%,
+                    var(--background-mid) 50%,
+                    var(--background-end) 100%
+                );
+            color: var(--text-primary);
+            line-height: 1.5;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
         .container {
+            position: relative;
             max-width: 1200px;
             margin: 0 auto;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1;
         }
-        h1 {
+
+        .header {
             text-align: center;
-            color: #333;
+            margin-bottom: 2rem;
         }
-        #chartContainer {
-            position: relative;
-            height: 70vh;
-            width: 100%;
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
-        .loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 1.2em;
-            color: #666;
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
         }
-        .footer {
-            margin-top: 20px;
-            text-align: center;
-            font-size: 14px;
-            color: #666;
+
+        .card {
+            background: var(--card-background);
+            border-radius: 1rem;
+            box-shadow: 0 8px 32px 0 var(--card-shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
         }
-        .date-range-container {
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 6px;
-        }
-        #dateRangeForm {
+
+        .date-range-form {
             display: flex;
+            gap: 1rem;
+            align-items: center;
             justify-content: center;
-            align-items: center;
-            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
         }
-        .date-inputs {
+
+        .form-group {
             display: flex;
-            gap: 20px;
+            flex-direction: column;
+            gap: 0.5rem;
         }
-        .date-field {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .date-field label {
+
+        .form-group label {
+            font-size: 0.875rem;
             font-weight: 500;
-            color: #333;
+            color: var(--text-secondary);
         }
-        .date-field input[type="date"] {
-            padding: 6px 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
+
+        input[type="date"] {
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: inherit;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            background: rgba(15, 23, 42, 0.6);
+            transition: border-color 0.2s;
         }
-        button[type="submit"] {
-            padding: 8px 16px;
-            background-color: #007bff;
+
+        input[type="date"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        button {
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 4px;
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
             cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.2s;
+            transition: all 0.2s;
+            align-self: flex-end;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        button[type="submit"]:hover {
-            background-color: #0056b3;
+
+        button:hover {
+            background-color: var(--primary-color-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 60vh;
+            width: 100%;
+            background: rgba(15, 23, 42, 0.3);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 1rem;
+            }
+
+            .date-range-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            button {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>TSLA/MSTR Price Ratio Chart</h1>
-        <div class="date-range-container">
-            <form id="dateRangeForm">
-                <div class="date-inputs">
-                    <div class="date-field">
-                        <label for="fromDate">From:</label>
-                        <input type="date" id="fromDate" name="fromDate" required>
-                    </div>
-                    <div class="date-field">
-                        <label for="toDate">To:</label>
-                        <input type="date" id="toDate" name="toDate" required>
-                    </div>
+        <div class="header">
+            <h1>TSLA/MSTR Price Ratio Analysis</h1>
+            <p>Track the price relationship between Tesla and MicroStrategy stocks</p>
+        </div>
+
+        <div class="card">
+            <form id="dateRangeForm" class="date-range-form">
+                <div class="form-group">
+                    <label for="fromDate">From</label>
+                    <input type="date" id="fromDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="toDate">To</label>
+                    <input type="date" id="toDate" required>
                 </div>
                 <button type="submit">Update Chart</button>
             </form>
-        </div>
-        <div id="chartContainer">
+
+            <div class="chart-container">
+                <canvas id="chart"></canvas>
+            </div>
             <div class="loading">Loading data...</div>
-            <canvas id="chart"></canvas>
         </div>
+
         <div class="footer">
-            <p>Data source: Yahoo Finance | Last updated: <span id="lastUpdated"></span></p>
+            Data source: Yahoo Finance | Last updated: <span id="lastUpdated"></span>
         </div>
     </div>
     <script src="script.js"></script>
-    <script src="livereload.js"></script>
 </body>
 </html>

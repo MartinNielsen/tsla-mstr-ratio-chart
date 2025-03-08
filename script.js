@@ -43,22 +43,46 @@ function generateLineColor(index) {
 const CHART_CONFIG = {
     type: 'line',
     data: {
-        datasets: []  // Will be populated with daily datasets
+        datasets: []
     },
     options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+            intersect: false,
+            mode: 'index'
+        },
         plugins: {
             title: {
-                display: true,
-                text: 'Tesla to MicroStrategy Stock Price Ratio'
+                display: false
             },
             tooltip: {
-                mode: 'index',
-                intersect: false,
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                titleColor: '#f1f5f9',
+                bodyColor: '#f1f5f9',
+                borderColor: 'rgba(148, 163, 184, 0.2)',
+                borderWidth: 1,
+                padding: 12,
+                boxPadding: 4,
+                usePointStyle: true,
+                callbacks: {
+                    title: (context) => {
+                        return new Date(context[0].parsed.x).toLocaleString(undefined, {
+                            weekday: 'short',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    },
+                    label: (context) => {
+                        return `Ratio: ${context.parsed.y.toFixed(4)}`;
+                    }
+                }
             },
             legend: {
-                display: false  // Hide the legend completely
+                display: false
             }
         },
         scales: {
@@ -71,15 +95,37 @@ const CHART_CONFIG = {
                         day: 'MMM d'
                     }
                 },
-                title: {
+                grid: {
                     display: true,
-                    text: 'Time'
+                    color: 'rgba(148, 163, 184, 0.1)',
+                    drawBorder: false
+                },
+                border: {
+                    display: false
+                },
+                ticks: {
+                    color: '#94a3b8',
+                    font: {
+                        family: "'Inter', sans-serif",
+                        size: 11
+                    }
                 }
             },
             y: {
-                title: {
+                grid: {
                     display: true,
-                    text: 'Price Ratio (TSLA/MSTR)'
+                    color: 'rgba(148, 163, 184, 0.1)',
+                    drawBorder: false
+                },
+                border: {
+                    display: false
+                },
+                ticks: {
+                    color: '#94a3b8',
+                    font: {
+                        family: "'Inter', sans-serif",
+                        size: 11
+                    }
                 }
             }
         }
@@ -254,12 +300,18 @@ async function initChart(startDate = null, endDate = null) {
         
         // Create a dataset for each day with the same color
         const datasets = Array.from(ratiosByDay.entries()).map(([day, data]) => ({
-            label: '',  // Removing the day label
+            label: '',
             data: data,
-            borderColor: 'rgb(75, 192, 192)',  // Using a consistent teal color for all lines
-            tension: 0.1,
-            pointRadius: 1,
-            fill: false
+            borderColor: '#60a5fa',
+            backgroundColor: 'rgba(96, 165, 250, 0.1)',
+            borderWidth: 2,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            pointHoverBackgroundColor: '#60a5fa',
+            pointHoverBorderColor: '#ffffff',
+            pointHoverBorderWidth: 2,
+            fill: true
         }));
 
         chartInstance.data.datasets = datasets;
